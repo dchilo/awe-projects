@@ -1,0 +1,34 @@
+---
+- name: Extract Nagios Client Configurations
+  hosts: all
+  gather_facts: false
+  become: yes
+
+  vars:
+    nagios_config_path: "/etc/nagios/nrpe.cfg"  # Ruta del archivo de configuración principal
+    destination_path: "/tmp/nagios_configs"    # Directorio temporal para guardar las configuraciones
+
+  tasks:
+    - name: Ensure destination directory exists on control machine
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: "{{ destination_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check if Nagios configuration file exists
+      ansible.builtin.stat:
+        path: "{{ nagios_config_path }}"
+      register: nagios_config_status
+
+    - name: Copy Nagios configuration file to control node
+      when: nagios_config_status.stat.exists
+      ansible.builtin.fetch:
+        src: "{{ nagios_config_path }}"
+        dest: "{{ destination_path }}/{{ inventory_hostname }}_nrpe.cfg"
+        flat: yes
+
+    - name: Log missing configuration files
+      when: not nagios_config_status.stat.exists
+      ansible.builtin.debug:
+        msg: "Nagios configuration file not found on host {{ inventory_hostname }}."
